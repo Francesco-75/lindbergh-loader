@@ -366,6 +366,8 @@ static int detectGame(uint32_t elf_crc)
         config.gameNativeResolutions = "";
         config.gameType = SHOOTING;
         config.gameStatus = WORKING;
+        config.width = 1360;
+        config.height = 768;
         return 0;
     }
     break;
@@ -380,6 +382,8 @@ static int detectGame(uint32_t elf_crc)
         config.gameNativeResolutions = "";
         config.gameType = SHOOTING;
         config.gameStatus = WORKING;
+        config.width = 1024;
+        config.height = 768;
         return 0;
     }
     break;
@@ -842,6 +846,8 @@ static int detectGame(uint32_t elf_crc)
         config.gameNativeResolutions = "";
         config.gameType = SHOOTING;
         config.gameStatus = WORKING;
+        config.width = 1360;
+        config.height = 768;
         return 0;
     }
     break;
@@ -916,6 +922,24 @@ const char *getGpuTypeString(GpuType gpuType)
     return GpuTypeStrings[gpuType];
 }
 
+void toLowerCase(char *str) {
+    while (*str) {  // Iterate through the string until the null terminator
+        *str = tolower((unsigned char)*str);  // Convert each character to lowercase
+        str++;  // Move to the next character
+    }
+}
+
+int getNextIntOrAuto(char *saveptr, int defaultValue) {
+    char nextToken[256];
+    strcpy(nextToken, getNextToken(NULL, " ", &saveptr));
+    toLowerCase(nextToken);
+
+    if(strcmp(nextToken, "auto") == 0)
+        return defaultValue;
+
+    return atoi(nextToken);
+}
+
 int readConfig(FILE *configFile, EmulatorConfig *config)
 {
     char buffer[MAX_LINE_LENGTH];
@@ -930,11 +954,15 @@ int readConfig(FILE *configFile, EmulatorConfig *config)
 
         char *command = getNextToken(buffer, " ", &saveptr);
 
-        if (strcmp(command, "WIDTH") == 0)
-            config->width = atoi(getNextToken(NULL, " ", &saveptr));
+        if (strcmp(command, "WIDTH") == 0) {
+            int defaultValue = config->width;
+            config->width = getNextIntOrAuto(saveptr, defaultValue);
+        }
 
-        else if (strcmp(command, "HEIGHT") == 0)
-            config->height = atoi(getNextToken(NULL, " ", &saveptr));
+        else if (strcmp(command, "HEIGHT") == 0) {
+            int defaultValue = config->height;
+            config->height = getNextIntOrAuto(saveptr, defaultValue);
+        }
 
         else if (strcmp(command, "EEPROM_PATH") == 0)
             strcpy(config->eepromPath, getNextToken(NULL, " ", &saveptr));
@@ -942,14 +970,20 @@ int readConfig(FILE *configFile, EmulatorConfig *config)
         else if (strcmp(command, "SRAM_PATH") == 0)
             strcpy(config->sramPath, getNextToken(NULL, " ", &saveptr));
 
-        else if (strcmp(command, "EMULATE_RIDEBOARD") == 0)
-            config->emulateRideboard = atoi(getNextToken(NULL, " ", &saveptr));
+        else if (strcmp(command, "EMULATE_RIDEBOARD") == 0) {
+            int defaultValue = config->emulateRideboard;
+            config->emulateRideboard = getNextIntOrAuto(saveptr, defaultValue);
+        }
 
-        else if (strcmp(command, "EMULATE_DRIVEBOARD") == 0)
-            config->emulateDriveboard = atoi(getNextToken(NULL, " ", &saveptr));
+        else if (strcmp(command, "EMULATE_DRIVEBOARD") == 0) {
+            int defaultValue = config->emulateDriveboard;
+            config->emulateDriveboard = getNextIntOrAuto(saveptr, defaultValue);
+        }
 
-        else if (strcmp(command, "EMULATE_MOTIONBOARD") == 0)
-            config->emulateMotionboard = atoi(getNextToken(NULL, " ", &saveptr));
+        else if (strcmp(command, "EMULATE_MOTIONBOARD") == 0) {
+            int defaultValue = config->emulateMotionboard;
+            config->emulateMotionboard = getNextIntOrAuto(saveptr, defaultValue);
+        }
 
         else if (strcmp(command, "FULLSCREEN") == 0)
             config->fullscreen = atoi(getNextToken(NULL, " ", &saveptr));
@@ -1228,6 +1262,15 @@ int readConfig(FILE *configFile, EmulatorConfig *config)
         else if (strcmp(command, "SKIP_OUTRUN_CABINET_CHECK") == 0)
             config->skipOutrunCabinetCheck = atoi(getNextToken(NULL, " ", &saveptr));
 
+        else if (strcmp(command, "BORDER_ENABLED") == 0)
+            config->borderEnabled = atoi(getNextToken(NULL, " ", &saveptr));
+
+        else if (strcmp(command, "WHITE_BORDER_PERCENTAGE") == 0)
+            config->whiteBorderPercentage = (float) atoi(getNextToken(NULL, " ", &saveptr)) / 100.0;
+
+        else if (strcmp(command, "BLACK_BORDER_PERCENTAGE") == 0)
+            config->blackBorderPercentage = (float) atoi(getNextToken(NULL, " ", &saveptr)) / 100.0;
+
         else if (strcmp(command, "INPUT_MODE") == 0)
             config->inputMode = atoi(getNextToken(NULL, " ", &saveptr));
 
@@ -1287,7 +1330,7 @@ int initConfig()
     strcpy(config.serial2Path, "/dev/ttyS1");
     config.width = 640;
     config.height = 480;
-    config.region = 0;
+    config.region = EX;
     config.freeplay = -1;
     config.showDebugMessages = 0;
     config.hummerFlickerFix = 0;
@@ -1313,6 +1356,9 @@ int initConfig()
     memset(&config.arcadeInputs.analogue_deadzone_end, 0, sizeof(config.arcadeInputs.analogue_deadzone_end));
     config.crc32 = elf_crc;
     config.skipOutrunCabinetCheck = 0;
+    config.borderEnabled = 0;
+    config.whiteBorderPercentage = 0.02;
+    config.blackBorderPercentage = 0.0;
     if (detectGame(config.crc32) != 0)
     {
         printf("Warning: Unsure what game with CRC 0x%X is. Please submit this new game to the GitHub repository: "

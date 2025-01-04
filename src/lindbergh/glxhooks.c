@@ -24,6 +24,7 @@
 #include "sdlcalls.h"
 #include "patch.h"
 #include "config.h"
+#include "border.h"
 
 bool sdlGame = false;
 extern SDL_Window *SDLwindow;
@@ -35,6 +36,11 @@ extern Window win;
 void glXToSDLSwapBuffers(Display *dpy, GLXDrawable drawable)
 {
     pollEvents();
+
+    EmulatorConfig *config = getConfig();
+    if (config->borderEnabled)
+        drawGameBorder(config->width, config->height, config->whiteBorderPercentage, config->blackBorderPercentage);
+
     SDL_GL_SwapWindow(SDLwindow);
     if (getConfig()->fpsLimiter)
     {
@@ -65,8 +71,8 @@ XVisualInfo *glXChooseVisual(Display *dpy, int screen, int *attribList)
     return _glXChooseVisual(dpy, screen, attribList);
 }
 
-void GLAPIENTRY openglDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length,
-                                    const GLchar *message, const void *userParam)
+void GLAPIENTRY openglDebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message,
+                                    const void *userParam)
 {
     if (id == 1099)
         return;
@@ -89,9 +95,14 @@ void glXSwapBuffers(Display *dpy, GLXDrawable drawable)
 {
     void (*_glXSwapBuffers)(Display *dpy, GLXDrawable drawable) = dlsym(RTLD_NEXT, "glXSwapBuffers");
 
-    int gId = getConfig()->crc32;
-    if (getConfig()->noSDL && (gId == OUTRUN_2_SP_SDX || gId == OUTRUN_2_SP_SDX_REVA ||
-                               gId == OUTRUN_2_SP_SDX_REVA_TEST || gId == OUTRUN_2_SP_SDX_REVA_TEST2 || gId == OUTRUN_2_SP_SDX_TEST))
+    EmulatorConfig *config = getConfig();
+
+    if (config->borderEnabled)
+        drawGameBorder(config->width, config->height, config->whiteBorderPercentage, config->blackBorderPercentage);
+
+    int gId = config->crc32;
+    if (getConfig()->noSDL && (gId == OUTRUN_2_SP_SDX || gId == OUTRUN_2_SP_SDX_REVA || gId == OUTRUN_2_SP_SDX_REVA_TEST ||
+                               gId == OUTRUN_2_SP_SDX_REVA_TEST2 || gId == OUTRUN_2_SP_SDX_TEST))
     {
         XEvent event;
         while (XPending(dpy))
@@ -100,7 +111,7 @@ void glXSwapBuffers(Display *dpy, GLXDrawable drawable)
         }
     }
     _glXSwapBuffers(dpy, drawable);
-    if (getConfig()->fpsLimiter)
+    if (config->fpsLimiter)
     {
         fpsLimit.frameStart = Clock_now();
         FpsLimiter(&fpsLimit);
@@ -139,8 +150,7 @@ GLXContext glXGetCurrentContext()
 
 GLXPbuffer glXCreatePbuffer(Display *dpy, GLXFBConfig config, const int *attrib_list)
 {
-    GLXPbuffer (*_glXCreatePbuffer)(Display *dpy, GLXFBConfig config, const int *attrib_list) =
-        dlsym(RTLD_NEXT, "glXCreatePbuffer");
+    GLXPbuffer (*_glXCreatePbuffer)(Display *dpy, GLXFBConfig config, const int *attrib_list) = dlsym(RTLD_NEXT, "glXCreatePbuffer");
     if (sdlGame)
         return 0;
     return _glXCreatePbuffer(dpy, config, attrib_list);
@@ -164,8 +174,7 @@ void glXDestroyPbuffer(Display *dpy, GLXPbuffer pbuf)
 
 XVisualInfo *glXGetVisualFromFBConfig(Display *dpy, GLXFBConfig config)
 {
-    XVisualInfo *(*_glXGetVisualFromFBConfig)(Display *dpy, GLXFBConfig config) =
-        dlsym(RTLD_NEXT, "glXGetVisualFromFBConfig");
+    XVisualInfo *(*_glXGetVisualFromFBConfig)(Display *dpy, GLXFBConfig config) = dlsym(RTLD_NEXT, "glXGetVisualFromFBConfig");
     if (sdlGame)
         return 0;
     return _glXGetVisualFromFBConfig(dpy, config);
@@ -203,9 +212,9 @@ GLXFBConfig *glXChooseFBConfig(Display *dpy, int screen, const int *attrib_list,
     if (__NV_PRIME_RENDER_OFFLOAD == NULL)
         __NV_PRIME_RENDER_OFFLOAD = " ";
     if ((strcmp(__GLX_VENDOR_LIBRARY_NAME, "nvidia") == 0) && (strcmp(__NV_PRIME_RENDER_OFFLOAD, "1") == 0) &&
-        ((gId == THE_HOUSE_OF_THE_DEAD_4_REVA) || (gId == THE_HOUSE_OF_THE_DEAD_4_REVB) ||
-         (gId == THE_HOUSE_OF_THE_DEAD_4_REVC) || (gId == THE_HOUSE_OF_THE_DEAD_4_SPECIAL) ||
-         (gId == THE_HOUSE_OF_THE_DEAD_4_SPECIAL_REVB) || (gId == THE_HOUSE_OF_THE_DEAD_EX) || (gId == TOO_SPICY)))
+        ((gId == THE_HOUSE_OF_THE_DEAD_4_REVA) || (gId == THE_HOUSE_OF_THE_DEAD_4_REVB) || (gId == THE_HOUSE_OF_THE_DEAD_4_REVC) ||
+         (gId == THE_HOUSE_OF_THE_DEAD_4_SPECIAL) || (gId == THE_HOUSE_OF_THE_DEAD_4_SPECIAL_REVB) || (gId == THE_HOUSE_OF_THE_DEAD_EX) ||
+         (gId == TOO_SPICY)))
     {
         for (int i = 0; attrib_list[i] != None; i += 2)
         {
@@ -222,8 +231,8 @@ GLXFBConfig *glXChooseFBConfig(Display *dpy, int screen, const int *attrib_list,
 
 GLXContext glXCreateNewContext(Display *dpy, GLXFBConfig config, int render_type, GLXContext share_list, Bool direct)
 {
-    GLXContext (*_glXCreateNewContext)(Display *dpy, GLXFBConfig config, int render_type, GLXContext share_list,
-                                       Bool direct) = dlsym(RTLD_NEXT, "glXCreateNewContext");
+    GLXContext (*_glXCreateNewContext)(Display *dpy, GLXFBConfig config, int render_type, GLXContext share_list, Bool direct) =
+        dlsym(RTLD_NEXT, "glXCreateNewContext");
 
     GLXContext ctx = _glXCreateNewContext(dpy, config, render_type, share_list, direct);
 
@@ -237,20 +246,12 @@ GLXContext glXCreateNewContext(Display *dpy, GLXFBConfig config, int render_type
     return ctx;
 }
 
-GLXPbuffer glXCreateGLXPbufferSGIX(Display *dpy, GLXFBConfigSGIX config, unsigned int width, unsigned int height,
-                                   int *attrib_list)
+GLXPbuffer glXCreateGLXPbufferSGIX(Display *dpy, GLXFBConfigSGIX config, unsigned int width, unsigned int height, int *attrib_list)
 {
     if (sdlGame)
         return 0;
-    int pbufferAttribs[] = {GLX_PBUFFER_WIDTH,
-                            width,
-                            GLX_PBUFFER_HEIGHT,
-                            height,
-                            GLX_PRESERVED_CONTENTS,
-                            true,
-                            GLX_LARGEST_PBUFFER,
-                            true,
-                            None};
+    int pbufferAttribs[] = {
+        GLX_PBUFFER_WIDTH, width, GLX_PBUFFER_HEIGHT, height, GLX_PRESERVED_CONTENTS, true, GLX_LARGEST_PBUFFER, true, None};
     return glXCreatePbuffer(dpy, config, pbufferAttribs);
 }
 
@@ -274,8 +275,7 @@ GLXFBConfigSGIX *glXChooseFBConfigSGIX(Display *dpy, int screen, int *attrib_lis
         __NV_PRIME_RENDER_OFFLOAD = " ";
     if ((strcmp(__GLX_VENDOR_LIBRARY_NAME, "nvidia") == 0) && (strcmp(__NV_PRIME_RENDER_OFFLOAD, "1") == 0) &&
         ((gId == INITIALD_4_REVA) || (gId == INITIALD_4_REVB) || (gId == INITIALD_4_REVC) || (gId == INITIALD_4_REVD) ||
-         (gId == INITIALD_4_REVG) || (gId == INITIALD_4_EXP_REVB) || (gId == INITIALD_4_EXP_REVC) ||
-         gId == INITIALD_4_EXP_REVD))
+         (gId == INITIALD_4_REVG) || (gId == INITIALD_4_EXP_REVB) || (gId == INITIALD_4_EXP_REVC) || gId == INITIALD_4_EXP_REVD))
     {
         for (int i = 0; attrib_list[i] != None; i += 2)
         {
@@ -296,8 +296,7 @@ int glXGetFBConfigAttribSGIX(Display *dpy, GLXFBConfigSGIX config, int attribute
     return glXGetFBConfigAttrib(dpy, config, attribute, value);
 }
 
-GLXContext glXCreateContextWithConfigSGIX(Display *dpy, GLXFBConfigSGIX config, int render_type, GLXContext share_list,
-                                          Bool direct)
+GLXContext glXCreateContextWithConfigSGIX(Display *dpy, GLXFBConfigSGIX config, int render_type, GLXContext share_list, Bool direct)
 {
     if (sdlGame)
         return 0;
