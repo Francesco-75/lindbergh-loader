@@ -735,13 +735,13 @@ int ioctl(int fd, unsigned int request, void *data)
     int (*_ioctl)(int fd, int request, void *data) = dlsym(RTLD_NEXT, "ioctl");
 
     // Attempt to stop access to the ethernet ports
-    if ((request == SIOCSIFADDR) || (request == SIOCSIFFLAGS) || (request == SIOCSIFHWADDR) ||
-        (request == SIOCSIFHWBROADCAST) || (request == SIOCDELRT) || (request == SIOCADDRT) ||
-        (request == SIOCSIFNETMASK))
-    {
-        errno = ENXIO;
-        return -1;
-    }
+//    if ((request == SIOCSIFADDR) || (request == SIOCSIFFLAGS) || (request == SIOCSIFHWADDR) ||
+//        (request == SIOCSIFHWBROADCAST) || (request == SIOCDELRT) || (request == SIOCADDRT) ||
+//        (request == SIOCSIFNETMASK))
+//    {
+//        errno = ENXIO;
+//        return -1;
+//    }
 
     if (fd == hooks[EEPROM])
     {
@@ -814,6 +814,9 @@ int system(const char *command)
     if (strstr(command, "losetup") != NULL)
         return 0;
 
+    if (strstr(command, "check_ip.sh") != NULL)
+        return 0;
+    
     return _system(command);
 }
 
